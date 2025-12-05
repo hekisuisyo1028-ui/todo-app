@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { addDays } from 'date-fns'
-import { Plus, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, Sparkles, CheckSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TaskList } from '@/components/tasks/TaskList'
 import { TaskForm } from '@/components/tasks/TaskForm'
@@ -16,6 +16,7 @@ export default function TodayPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [mounted, setMounted] = useState(false)
   
   const {
     tasks,
@@ -31,6 +32,10 @@ export default function TodayPage() {
   
   const { categories } = useCategories()
   const supabase = createClient()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // 未完了タスクの自動引き継ぎ
   useEffect(() => {
@@ -49,8 +54,10 @@ export default function TodayPage() {
       refetch()
     }
 
-    carryOverTasks()
-  }, [supabase, refetch])
+    if (mounted) {
+      carryOverTasks()
+    }
+  }, [supabase, refetch, mounted])
 
   const handlePrevDay = () => setCurrentDate(prev => addDays(prev, -1))
   const handleNextDay = () => setCurrentDate(prev => addDays(prev, 1))
@@ -58,12 +65,14 @@ export default function TodayPage() {
 
   const handleAddTask = async (data: TaskFormData) => {
     await addTask(data)
+    refetch()
   }
 
   const handleUpdateTask = async (data: TaskFormData) => {
     if (editingTask) {
       await updateTask(editingTask.id, data)
       setEditingTask(null)
+      refetch()
     }
   }
 
@@ -72,14 +81,29 @@ export default function TodayPage() {
     setIsFormOpen(true)
   }
 
+  const handleDelete = async (id: string) => {
+    await deleteTask(id)
+    refetch()
+  }
+
+  const handleToggleComplete = async (id: string) => {
+    await toggleComplete(id)
+    refetch()
+  }
+
   const handleMoveToTomorrow = async (id: string) => {
     const tomorrow = formatDateISO(addDays(currentDate, 1))
     await moveTask(id, tomorrow)
+    refetch()
   }
 
   const handleFormClose = (open: boolean) => {
     setIsFormOpen(open)
     if (!open) setEditingTask(null)
+  }
+
+  if (!mounted) {
+    return null
   }
 
   const isToday = isTodayDate(currentDate)
@@ -89,7 +113,7 @@ export default function TodayPage() {
   return (
     <div className="max-w-2xl mx-auto">
       {/* Date Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/50 p-6 mb-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
         <div className="flex items-center justify-between">
           {/* Date Navigation */}
           <div className="flex items-center gap-2">
@@ -131,7 +155,7 @@ export default function TodayPage() {
           {/* Add Button */}
           <Button 
             onClick={() => setIsFormOpen(true)}
-            className="h-10 px-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg shadow-blue-500/25"
+            className="h-10 px-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/25"
           >
             <Plus className="h-4 w-4 mr-2" />
             追加
@@ -158,7 +182,7 @@ export default function TodayPage() {
       </div>
 
       {/* Task List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/50 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
@@ -177,7 +201,7 @@ export default function TodayPage() {
             <Button 
               onClick={() => setIsFormOpen(true)}
               variant="outline"
-              className="rounded-xl"
+              className="rounded-xl bg-white border-slate-200"
             >
               <Plus className="h-4 w-4 mr-2" />
               タスクを追加
@@ -186,9 +210,9 @@ export default function TodayPage() {
         ) : (
           <TaskList
             tasks={tasks}
-            onToggleComplete={toggleComplete}
+            onToggleComplete={handleToggleComplete}
             onEdit={handleEdit}
-            onDelete={deleteTask}
+            onDelete={handleDelete}
             onMoveToTomorrow={handleMoveToTomorrow}
             onReorder={reorderTasks}
           />
@@ -207,6 +231,3 @@ export default function TodayPage() {
     </div>
   )
 }
-
-// CheckSquare icon import for empty state
-import { CheckSquare } from 'lucide-react'

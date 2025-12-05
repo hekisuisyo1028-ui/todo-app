@@ -5,8 +5,6 @@ import { Save, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { useCategories } from '@/lib/hooks/useCategories'
 import { createClient } from '@/lib/supabase/client'
@@ -20,10 +18,15 @@ export default function SettingsPage() {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [mounted, setMounted] = useState(false)
   
-  const { categories, addCategory, updateCategory, deleteCategory, refetch } = useCategories()
+  const { categories, addCategory, updateCategory, deleteCategory } = useCategories()
   const { toast } = useToast()
   const supabase = createClient()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -121,56 +124,68 @@ export default function SettingsPage() {
     }
   }
 
+  if (!mounted) {
+    return null
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold">設定</h1>
+      <h1 className="text-xl font-bold text-slate-900">設定</h1>
 
       {/* Notification Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>通知設定</CardTitle>
-          <CardDescription>
-            毎朝の通知時間を設定します
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <h2 className="font-semibold text-slate-900">通知設定</h2>
+          <p className="text-sm text-slate-500">毎朝の通知時間を設定します</p>
+        </div>
+        <div className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <Label htmlFor="notification-enabled">通知を有効にする</Label>
-            <Switch
+            <Label htmlFor="notification-enabled" className="text-slate-700">通知を有効にする</Label>
+            <button
               id="notification-enabled"
-              checked={notificationEnabled}
-              onCheckedChange={setNotificationEnabled}
-            />
+              onClick={() => setNotificationEnabled(!notificationEnabled)}
+              className={`w-12 h-6 rounded-full transition-colors ${
+                notificationEnabled ? 'bg-blue-500' : 'bg-slate-300'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
+                  notificationEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="notification-time">通知時間</Label>
+            <Label htmlFor="notification-time" className="text-slate-700">通知時間</Label>
             <Input
               id="notification-time"
               type="time"
               value={notificationTime}
               onChange={(e) => setNotificationTime(e.target.value)}
               disabled={!notificationEnabled}
-              className="w-32"
+              className="w-32 bg-white border-slate-200"
             />
           </div>
 
-          <Button onClick={handleSaveNotification} disabled={saving}>
+          <Button 
+            onClick={handleSaveNotification} 
+            disabled={saving}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
             <Save className="h-4 w-4 mr-2" />
             保存
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Category Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>カテゴリ管理</CardTitle>
-          <CardDescription>
-            タスクのカテゴリを追加・編集・削除できます
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <h2 className="font-semibold text-slate-900">カテゴリ管理</h2>
+          <p className="text-sm text-slate-500">タスクのカテゴリを追加・編集・削除できます</p>
+        </div>
+        <div className="p-6 space-y-4">
           {/* Add Category */}
           <div className="flex gap-2">
             <Input
@@ -178,8 +193,13 @@ export default function SettingsPage() {
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+              className="bg-white border-slate-200"
             />
-            <Button onClick={handleAddCategory} disabled={!newCategoryName.trim()}>
+            <Button 
+              onClick={handleAddCategory} 
+              disabled={!newCategoryName.trim()}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
               <Plus className="h-4 w-4 mr-2" />
               追加
             </Button>
@@ -190,14 +210,14 @@ export default function SettingsPage() {
             {categories.map((category) => (
               <div
                 key={category.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
               >
                 {editingCategory === category.id ? (
                   <div className="flex items-center gap-2 flex-1">
                     <Input
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
-                      className="h-8"
+                      className="h-8 bg-white border-slate-200"
                       autoFocus
                     />
                     <Button
@@ -206,7 +226,7 @@ export default function SettingsPage() {
                       className="h-8 w-8"
                       onClick={() => handleSaveEdit(category.id)}
                     >
-                      <Check className="h-4 w-4" />
+                      <Check className="h-4 w-4 text-green-600" />
                     </Button>
                     <Button
                       size="icon"
@@ -214,12 +234,12 @@ export default function SettingsPage() {
                       className="h-8 w-8"
                       onClick={handleCancelEdit}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-4 w-4 text-slate-500" />
                     </Button>
                   </div>
                 ) : (
                   <>
-                    <span className="font-medium">{category.name}</span>
+                    <span className="font-medium text-slate-700">{category.name}</span>
                     <div className="flex items-center gap-1">
                       <Button
                         size="icon"
@@ -227,15 +247,15 @@ export default function SettingsPage() {
                         className="h-8 w-8"
                         onClick={() => handleStartEdit(category)}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-4 w-4 text-slate-500" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-red-600 hover:text-red-700"
+                        className="h-8 w-8"
                         onClick={() => handleDeleteCategory(category.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>
                   </>
@@ -243,21 +263,21 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Account Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>アカウント情報</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <h2 className="font-semibold text-slate-900">アカウント情報</h2>
+        </div>
+        <div className="p-6">
           <div className="space-y-2">
-            <Label>メールアドレス</Label>
-            <p className="text-sm text-muted-foreground">{profile?.email}</p>
+            <Label className="text-slate-700">メールアドレス</Label>
+            <p className="text-sm text-slate-500">{profile?.email}</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
