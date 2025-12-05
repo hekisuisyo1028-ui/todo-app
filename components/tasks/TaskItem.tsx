@@ -66,9 +66,9 @@ export function TaskItem({
         ref={setNodeRef}
         style={style}
         className={cn(
-          'group flex items-center gap-3 p-4 border-b border-slate-100 last:border-b-0 transition-all',
+          'group flex items-center gap-3 p-4 border-b border-slate-100 last:border-b-0 transition-all bg-white',
           isDragging && 'opacity-50',
-          task.is_completed ? 'bg-slate-50/50' : 'hover:bg-slate-50/50'
+          task.is_completed && 'bg-slate-50'
         )}
       >
         {/* Drag Handle */}
