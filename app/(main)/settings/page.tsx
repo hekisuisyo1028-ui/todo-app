@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Save, Plus, Pencil, Trash2, X, Check, Repeat } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { useCategories } from '@/lib/hooks/useCategories'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import type { Profile, Category } from '@/types'
 
 export default function SettingsPage() {
@@ -22,6 +23,7 @@ export default function SettingsPage() {
   
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories()
   const { toast } = useToast()
+  const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
@@ -131,6 +133,27 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-xl font-bold text-slate-900">設定</h1>
+
+      {/* Routine Management Link */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button
+          onClick={() => router.push('/settings/routines')}
+          className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <Repeat className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="text-left">
+              <h2 className="font-semibold text-slate-900">ルーティン管理</h2>
+              <p className="text-sm text-slate-500">毎日繰り返すタスクを設定</p>
+            </div>
+          </div>
+          <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
 
       {/* Notification Settings */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">

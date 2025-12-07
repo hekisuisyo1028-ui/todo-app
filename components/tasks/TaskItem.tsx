@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, MoreHorizontal, Pencil, Trash2, ArrowRight, Check } from 'lucide-react'
+import { GripVertical, MoreHorizontal, Pencil, Trash2, ArrowRight, Check, Repeat } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -98,6 +98,13 @@ export function TaskItem({
         {/* Task Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Routine Icon */}
+            {task.routine_id && (
+              <span className="inline-flex" title="ルーティンタスク">
+                <Repeat className="h-4 w-4 text-blue-500 flex-shrink-0" />
+              </span>
+            )}
+            
             <span
               className={cn(
                 'font-medium transition-all',

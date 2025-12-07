@@ -29,6 +29,7 @@ export interface Task {
   is_completed: boolean
   task_date: string
   sort_order: number
+  routine_id: string | null
   created_at: string
   updated_at: string
   category?: Category
@@ -40,6 +41,28 @@ export interface TaskFormData {
   priority: Priority
   category_id?: string
   task_date: string
+}
+
+export interface Routine {
+  id: string
+  user_id: string
+  category_id: string | null
+  title: string
+  memo: string | null
+  has_time: boolean
+  time: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  category?: Category
+}
+
+export interface RoutineFormData {
+  title: string
+  memo?: string
+  category_id?: string
+  has_time: boolean
+  time?: string
 }
 
 export const PRIORITY_CONFIG = {
