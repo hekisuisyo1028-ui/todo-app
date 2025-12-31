@@ -1,97 +1,80 @@
-export type Priority = 'high' | 'medium' | 'low'
+import { Database } from '@/lib/supabase/database.types'
 
-export interface Profile {
-  id: string
-  email: string
-  notification_time: string
-  notification_enabled: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface Category {
+// カテゴリ
+export type Category = {
   id: string
   user_id: string
   name: string
-  sort_order: number
-  is_default: boolean
+  color: string
   created_at: string
   updated_at: string
 }
 
-export interface Task {
+export type CategoryFormData = {
+  name: string
+  color: string
+}
+
+// タスク
+export type Task = {
   id: string
   user_id: string
-  category_id: string | null
   title: string
   memo: string | null
-  priority: Priority
+  category_id: string | null
+  category?: Category | null
+  priority: 'high' | 'medium' | 'low'
   is_completed: boolean
   task_date: string
   sort_order: number
   routine_id: string | null
   created_at: string
   updated_at: string
-  category?: Category
 }
 
-export interface TaskFormData {
+export type CreateTaskInput = {
   title: string
-  memo?: string
-  priority: Priority
-  category_id?: string
+  memo?: string | null
+  category_id?: string | null
+  priority?: 'high' | 'medium' | 'low'
+  is_completed?: boolean
   task_date: string
+  routine_id?: string | null
 }
 
-export interface Routine {
+export type UpdateTaskInput = Partial<CreateTaskInput>
+
+export type TaskFormData = {
+  title: string
+  memo?: string | null
+  category_id?: string | null
+  priority: 'high' | 'medium' | 'low'
+  task_date?: string
+}
+
+// ルーティン
+export type Routine = {
   id: string
   user_id: string
-  category_id: string | null
   title: string
   memo: string | null
+  category_id: string | null
+  category?: Category | null
+  priority: 'high' | 'medium' | 'low'
   has_time: boolean
   time: string | null
+  days_of_week: number[]
   is_active: boolean
   created_at: string
   updated_at: string
-  category?: Category
 }
 
-export interface RoutineFormData {
+export type RoutineFormData = {
   title: string
-  memo?: string
-  category_id?: string  // undefined を許可（空文字列ではなく）
+  memo?: string | null
+  category_id?: string | null
+  priority?: 'high' | 'medium' | 'low'
   has_time: boolean
-  time?: string
+  time?: string | null
+  days_of_week?: number[]
 }
-
-
-export const PRIORITY_CONFIG = {
-  high: {
-    label: '高',
-    color: 'bg-red-500',
-    textColor: 'text-red-600',
-    borderColor: 'border-red-500',
-  },
-  medium: {
-    label: '中',
-    color: 'bg-amber-500',
-    textColor: 'text-amber-600',
-    borderColor: 'border-amber-500',
-  },
-  low: {
-    label: '低',
-    color: 'bg-green-500',
-    textColor: 'text-green-600',
-    borderColor: 'border-green-500',
-  },
-} as const
-
-export const DEFAULT_CATEGORIES = [
-  '仕事',
-  'プライベート',
-  '買い物',
-  '健康・運動',
-  '勉強',
-  'その他',
-] as const

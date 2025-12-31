@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Task, CreateTaskInput, UpdateTaskInput } from '@/types'
 
@@ -12,13 +12,24 @@ const priorityOrder: Record<string, number> = {
 }
 
 // タスクを優先度順にソートする関数
-const sortTasksByPriority = (tasks: Task[]): Task[] => {
+// 1. 未完了タスクが上、完了済みタスクが下
+// 2. 同じ完了状態内では優先度順（高→中→低）
+// 3. 同じ優先度内では作成日時順（古い順）
+export const sortTasksByPriority = (tasks: Task[]): Task[] => {
   return [...tasks].sort((a, b) => {
+    // 1. 完了状態でソート（未完了が上）
+    if (a.is_completed !== b.is_completed) {
+      return a.is_completed ? 1 : -1
+    }
+    
+    // 2. 優先度でソート
     const priorityA = priorityOrder[a.priority] ?? 999
     const priorityB = priorityOrder[b.priority] ?? 999
     const priorityDiff = priorityA - priorityB
     if (priorityDiff !== 0) return priorityDiff
-    return a.sort_order - b.sort_order
+    
+    // 3. 作成日時でソート（古い順）
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   })
 }
 
@@ -39,12 +50,12 @@ export function useTasks() {
         .from('tasks')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', date)
-        .order('sort_order', { ascending: true })
+        .eq('task_date', date)
+        .order('created_at', { ascending: true })
 
       if (error) throw error
       
-      // 優先度順にソート
+      // 優先度順にソート（完了済みは下に）
       const sortedTasks = sortTasksByPriority(data || [])
       setTasks(sortedTasks)
     } catch (err) {
@@ -60,18 +71,12 @@ export function useTasks() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('ユーザーが見つかりません')
 
-      // 同じ優先度のタスクの最大sort_orderを取得
-      const samePriorityTasks = tasks.filter(t => t.priority === input.priority)
-      const maxSortOrder = samePriorityTasks.length > 0
-        ? Math.max(...samePriorityTasks.map(t => t.sort_order))
-        : Math.max(...tasks.map(t => t.sort_order), -1)
-
       const { data, error } = await supabase
         .from('tasks')
         .insert({
           ...input,
           user_id: user.id,
-          sort_order: maxSortOrder + 1,
+          sort_order: 0,
         })
         .select()
         .single()
@@ -85,7 +90,7 @@ export function useTasks() {
       setError(err instanceof Error ? err.message : 'タスクの作成に失敗しました')
       throw err
     }
-  }, [supabase, tasks])
+  }, [supabase])
 
   const updateTask = useCallback(async (id: string, input: UpdateTaskInput) => {
     setError(null)
@@ -132,26 +137,10 @@ export function useTasks() {
   }, [tasks, updateTask])
 
   const reorderTasks = useCallback(async (reorderedTasks: Task[]) => {
-    // 優先度順を維持しながらsort_orderを更新
+    // 優先度順を維持
     const sortedByPriority = sortTasksByPriority(reorderedTasks)
     setTasks(sortedByPriority)
-
-    try {
-      const updates = sortedByPriority.map((task, index) => ({
-        id: task.id,
-        sort_order: index,
-      }))
-
-      for (const update of updates) {
-        await supabase
-          .from('tasks')
-          .update({ sort_order: update.sort_order })
-          .eq('id', update.id)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '並び替えに失敗しました')
-    }
-  }, [supabase])
+  }, [])
 
   return {
     tasks,
@@ -163,5 +152,73 @@ export function useTasks() {
     deleteTask,
     toggleComplete,
     reorderTasks,
+  }
+}
+
+// 週間ビュー用のhook
+export function useWeekTasks() {
+  const [tasksByDate, setTasksByDate] = useState<Record<string, Task[]>>({})
+  const [loading, setLoading] = useState(false)
+  const supabase = createClient()
+
+  const fetchWeekTasks = useCallback(async (dates: Date[]) => {
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const dateStrings = dates.map(d => d.toISOString().split('T')[0])
+      
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, category:categories(*)')
+        .eq('user_id', user.id)
+        .in('task_date', dateStrings)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+
+      // 日付ごとにグループ化し、優先度順にソート
+      const grouped: Record<string, Task[]> = {}
+      for (const dateStr of dateStrings) {
+        const tasksForDate = (data || []).filter(t => t.task_date === dateStr)
+        grouped[dateStr] = sortTasksByPriority(tasksForDate)
+      }
+      setTasksByDate(grouped)
+    } catch (err) {
+      console.error('週間タスクの取得に失敗しました:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase])
+
+  const updateTaskInWeek = useCallback((updatedTask: Task) => {
+    setTasksByDate(prev => {
+      const newState = { ...prev }
+      for (const date of Object.keys(newState)) {
+        newState[date] = sortTasksByPriority(
+          newState[date].map(t => t.id === updatedTask.id ? updatedTask : t)
+        )
+      }
+      return newState
+    })
+  }, [])
+
+  const removeTaskFromWeek = useCallback((taskId: string) => {
+    setTasksByDate(prev => {
+      const newState = { ...prev }
+      for (const date of Object.keys(newState)) {
+        newState[date] = newState[date].filter(t => t.id !== taskId)
+      }
+      return newState
+    })
+  }, [])
+
+  return {
+    tasksByDate,
+    loading,
+    fetchWeekTasks,
+    updateTaskInWeek,
+    removeTaskFromWeek,
   }
 }

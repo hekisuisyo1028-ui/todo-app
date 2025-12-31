@@ -44,7 +44,7 @@ export default function HomePage() {
         .select('*')
         .eq('user_id', user.id)
         .eq('is_completed', false)
-        .lt('date', today)
+        .lt('task_date', today)
         .is('routine_id', null)  // ルーティンタスクを除外
 
       if (error) throw error
@@ -54,7 +54,7 @@ export default function HomePage() {
         for (const task of incompleteTasks) {
           await supabase
             .from('tasks')
-            .update({ date: today })
+            .update({ task_date: today, updated_at: new Date().toISOString() })
             .eq('id', task.id)
         }
       }
@@ -102,7 +102,7 @@ export default function HomePage() {
   }
 
   const handleCreateTask = async (data: Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'sort_order'>) => {
-    await createTask({ ...data, date: dateString })
+    await createTask({ ...data, task_date: dateString })
     setIsFormOpen(false)
   }
 

@@ -19,6 +19,35 @@ import { formatDateISO, formatDate } from '@/lib/utils'
 import { addDays } from 'date-fns'
 import type { Task, TaskFormData } from '@/types'
 
+// 優先度の重み付け（高→中→低の順）
+const priorityOrder: Record<string, number> = {
+  high: 1,
+  medium: 2,
+  low: 3,
+}
+
+// タスクを優先度順にソートする関数
+// 1. 未完了タスクが上、完了済みタスクが下
+// 2. 同じ完了状態内では優先度順（高→中→低）
+// 3. 同じ優先度内では作成日時順（古い順）
+const sortTasksByPriority = (tasks: Task[]): Task[] => {
+  return [...tasks].sort((a, b) => {
+    // 1. 完了状態でソート（未完了が上）
+    if (a.is_completed !== b.is_completed) {
+      return a.is_completed ? 1 : -1
+    }
+    
+    // 2. 優先度でソート
+    const priorityA = priorityOrder[a.priority] ?? 999
+    const priorityB = priorityOrder[b.priority] ?? 999
+    const priorityDiff = priorityA - priorityB
+    if (priorityDiff !== 0) return priorityDiff
+    
+    // 3. 作成日時でソート（古い順）
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  })
+}
+
 export default function SearchPage() {
   const [query, setQuery] = useState('')
   const [dateFilter, setDateFilter] = useState<string>('all')
@@ -83,7 +112,7 @@ export default function SearchPage() {
       .single()
 
     if (!error && data) {
-      setResults(prev => prev.map(t => t.id === id ? data : t))
+      setResults(prev => sortTasksByPriority(prev.map(t => t.id === id ? data : t)))
     }
   }
 
@@ -135,7 +164,7 @@ export default function SearchPage() {
       .single()
 
     if (!error && data) {
-      setResults(prev => prev.map(t => t.id === editingTask.id ? data : t))
+      setResults(prev => sortTasksByPriority(prev.map(t => t.id === editingTask.id ? data : t)))
     }
     setEditingTask(null)
   }
@@ -147,7 +176,7 @@ export default function SearchPage() {
     }
   }
 
-  // Group results by date
+  // Group results by date and sort by priority within each date
   const groupedResults = results.reduce((acc, task) => {
     const date = task.task_date
     if (!acc[date]) {
@@ -156,6 +185,11 @@ export default function SearchPage() {
     acc[date].push(task)
     return acc
   }, {} as Record<string, Task[]>)
+
+  // 各日付内で優先度順にソート
+  Object.keys(groupedResults).forEach(date => {
+    groupedResults[date] = sortTasksByPriority(groupedResults[date])
+  })
 
   return (
     <div className="max-w-2xl mx-auto">

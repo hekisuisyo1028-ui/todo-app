@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Routine, RoutineFormData } from '@/types'
 
@@ -9,7 +9,7 @@ export function useRoutines() {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
-  const fetchRoutines = async () => {
+  const fetchRoutines = useCallback(async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -30,13 +30,78 @@ export function useRoutines() {
       setRoutines(data)
     }
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
     fetchRoutines()
-  }, [])
+  }, [fetchRoutines])
 
-  const addRoutine = async (formData: RoutineFormData) => {
+  // ルーティンタスクを生成（当日分のみ、過去分はスライドしない）
+  const generateRoutineTasks = useCallback(async (dateString: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // 今日の日付を取得
+    const today = new Date().toISOString().split('T')[0]
+    
+    // 過去の日付の場合はルーティンタスクを生成しない
+    if (dateString < today) {
+      return
+    }
+
+    // アクティブなルーティンを取得
+    const { data: activeRoutines, error: routineError } = await supabase
+      .from('routines')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    if (routineError || !activeRoutines) return
+
+    // 指定日付の既存ルーティンタスクを取得
+    const { data: existingTasks, error: taskError } = await supabase
+      .from('tasks')
+      .select('routine_id')
+      .eq('user_id', user.id)
+      .eq('task_date', dateString)
+      .not('routine_id', 'is', null)
+
+    if (taskError) return
+
+    const existingRoutineIds = new Set(existingTasks?.map(t => t.routine_id) || [])
+
+    // まだ生成されていないルーティンのタスクを作成
+    for (const routine of activeRoutines) {
+      if (existingRoutineIds.has(routine.id)) continue
+
+      // 曜日チェック（ルーティンに曜日設定がある場合）
+      const targetDate = new Date(dateString)
+      const dayOfWeek = targetDate.getDay() // 0=日曜, 1=月曜, ...
+
+      // ルーティンにdays_of_weekがある場合はチェック
+      if (routine.days_of_week && routine.days_of_week.length > 0) {
+        if (!routine.days_of_week.includes(dayOfWeek)) {
+          continue
+        }
+      }
+
+      await supabase
+        .from('tasks')
+        .insert({
+          user_id: user.id,
+          title: routine.title,
+          memo: routine.memo,
+          category_id: routine.category_id,
+          priority: routine.priority || 'medium',
+          is_completed: false,
+          task_date: dateString,
+          routine_id: routine.id,
+          sort_order: 0,
+        })
+    }
+  }, [supabase])
+
+  const addRoutine = useCallback(async (formData: RoutineFormData) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
@@ -58,13 +123,13 @@ export function useRoutines() {
       .single()
 
     if (!error && data) {
-      setRoutines([data, ...routines])
+      setRoutines(prev => [data, ...prev])
       return data
     }
     return null
-  }
+  }, [supabase])
 
-  const updateRoutine = async (id: string, formData: RoutineFormData) => {
+  const updateRoutine = useCallback(async (id: string, formData: RoutineFormData) => {
     const { data, error } = await supabase
       .from('routines')
       .update({
@@ -83,13 +148,13 @@ export function useRoutines() {
       .single()
 
     if (!error && data) {
-      setRoutines(routines.map(r => r.id === id ? data : r))
+      setRoutines(prev => prev.map(r => r.id === id ? data : r))
       return data
     }
     return null
-  }
+  }, [supabase])
 
-  const toggleRoutineActive = async (id: string, isActive: boolean) => {
+  const toggleRoutineActive = useCallback(async (id: string, isActive: boolean) => {
     const { data, error } = await supabase
       .from('routines')
       .update({
@@ -104,24 +169,24 @@ export function useRoutines() {
       .single()
 
     if (!error && data) {
-      setRoutines(routines.map(r => r.id === id ? data : r))
+      setRoutines(prev => prev.map(r => r.id === id ? data : r))
       return data
     }
     return null
-  }
+  }, [supabase])
 
-  const deleteRoutine = async (id: string) => {
+  const deleteRoutine = useCallback(async (id: string) => {
     const { error } = await supabase
       .from('routines')
       .delete()
       .eq('id', id)
 
     if (!error) {
-      setRoutines(routines.filter(r => r.id !== id))
+      setRoutines(prev => prev.filter(r => r.id !== id))
       return true
     }
     return false
-  }
+  }, [supabase])
 
   return {
     routines,
@@ -130,6 +195,7 @@ export function useRoutines() {
     updateRoutine,
     toggleRoutineActive,
     deleteRoutine,
+    generateRoutineTasks,
     refetch: fetchRoutines,
   }
 }
