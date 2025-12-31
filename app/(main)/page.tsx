@@ -32,7 +32,6 @@ export default function HomePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // 過去の未完了タスクを取得（ルーティンタスクは除外）
       const { data: incompleteTasks, error } = await supabase
         .from('tasks')
         .select('*')
@@ -126,6 +125,12 @@ export default function HomePage() {
     await updateTask(id, { task_date: tomorrow })
   }
 
+  // onReorder: 優先度順ソートを維持するため、並び替えは無効化（空の関数）
+  const handleReorder = async (_reorderedTasks: Task[]) => {
+    // 優先度順ソートを維持するため、手動並び替えは無効
+    // 必要に応じてここでソート順を更新
+  }
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-2xl">
       {/* 日付ナビゲーション */}
@@ -160,6 +165,7 @@ export default function HomePage() {
           onEdit={handleEditTask}
           onDelete={handleDeleteTask}
           onMoveToTomorrow={handleMoveToTomorrow}
+          onReorder={handleReorder}
         />
       )}
 

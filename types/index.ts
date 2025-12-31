@@ -1,5 +1,3 @@
-import { Database } from '@/lib/supabase/database.types'
-
 // カテゴリ
 export type Category = {
   id: string
@@ -78,3 +76,27 @@ export type RoutineFormData = {
   time?: string | null
   days_of_week?: number[]
 }
+
+// 優先度設定
+export const PRIORITY_CONFIG = {
+  high: {
+    label: '高',
+    color: 'text-red-600',
+    bgColor: 'bg-red-100',
+    borderColor: 'border-red-300',
+  },
+  medium: {
+    label: '中',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-100',
+    borderColor: 'border-yellow-300',
+  },
+  low: {
+    label: '低',
+    color: 'text-green-600',
+    bgColor: 'bg-green-100',
+    borderColor: 'border-green-300',
+  },
+} as const
+
+export type Priority = keyof typeof PRIORITY_CONFIG
