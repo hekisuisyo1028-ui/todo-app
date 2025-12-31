@@ -36,7 +36,7 @@ export function useRoutines() {
     fetchRoutines()
   }, [fetchRoutines])
 
-  // ルーティンタスクを生成（当日分のみ、過去分はスライドしない）
+  // ルーティンタスクを生成（当日以降のみ、過去分はスライドしない）
   const generateRoutineTasks = useCallback(async (dateString: string) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -112,8 +112,10 @@ export function useRoutines() {
         title: formData.title,
         memo: formData.memo || null,
         category_id: formData.category_id || null,
+        priority: formData.priority || 'medium',
         has_time: formData.has_time,
         time: formData.has_time && formData.time ? formData.time + ':00' : null,
+        days_of_week: formData.days_of_week || [],
         is_active: true,
       })
       .select(`
@@ -136,8 +138,10 @@ export function useRoutines() {
         title: formData.title,
         memo: formData.memo || null,
         category_id: formData.category_id || null,
+        priority: formData.priority || 'medium',
         has_time: formData.has_time,
         time: formData.has_time && formData.time ? formData.time + ':00' : null,
+        days_of_week: formData.days_of_week || [],
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

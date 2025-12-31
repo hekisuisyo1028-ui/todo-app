@@ -1,34 +1,37 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, Power, PowerOff, Clock, Calendar } from 'lucide-react'
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useToast } from '@/components/ui/use-toast'
+import { Card, CardContent } from '@/components/ui/card'
+import { RoutineDialog } from '@/components/routines/RoutineDialog'
 import { useRoutines } from '@/lib/hooks/useRoutines'
 import { useCategories } from '@/lib/hooks/useCategories'
-import { RoutineDialog } from '@/components/routines/RoutineDialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import type { Routine } from '@/types'
+import { cn } from '@/lib/utils'
+import type { Routine, RoutineFormData } from '@/types'
+
+const DAYS_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土']
+
+const priorityLabels = {
+  high: '高',
+  medium: '中',
+  low: '低',
+}
+
+const priorityColors = {
+  high: 'text-red-500',
+  medium: 'text-yellow-500',
+  low: 'text-green-500',
+}
 
 export default function RoutinesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null)
-  const [deletingRoutine, setDeletingRoutine] = useState<Routine | null>(null)
   
-  const { routines, loading, deleteRoutine, toggleRoutineActive } = useRoutines()
+  const { routines, loading, addRoutine, updateRoutine, toggleRoutineActive, deleteRoutine } = useRoutines()
   const { categories } = useCategories()
-  const { toast } = useToast()
 
-  const handleAdd = () => {
+  const handleCreate = () => {
     setEditingRoutine(null)
     setDialogOpen(true)
   }
@@ -38,189 +41,141 @@ export default function RoutinesPage() {
     setDialogOpen(true)
   }
 
-  const handleDelete = async () => {
-    if (!deletingRoutine) return
-
-    const result = await deleteRoutine(deletingRoutine.id)
-    if (result) {
-      toast({
-        title: '削除完了',
-        description: 'ルーティンを削除しました。',
-      })
+  const handleSubmit = async (formData: RoutineFormData) => {
+    if (editingRoutine) {
+      await updateRoutine(editingRoutine.id, formData)
     } else {
-      toast({
-        title: 'エラー',
-        description: 'ルーティンの削除に失敗しました。',
-        variant: 'destructive',
-      })
+      await addRoutine(formData)
     }
-    setDeletingRoutine(null)
+    setDialogOpen(false)
+    setEditingRoutine(null)
   }
 
   const handleToggleActive = async (routine: Routine) => {
-    const result = await toggleRoutineActive(routine.id, !routine.is_active)
-    if (result) {
-      toast({
-        title: routine.is_active ? '無効化しました' : '有効化しました',
-        description: routine.is_active 
-          ? 'ルーティンからのタスク生成を停止しました。' 
-          : 'ルーティンからのタスク生成を再開しました。',
-      })
+    await toggleRoutineActive(routine.id, !routine.is_active)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (confirm('このルーティンを削除しますか？')) {
+      await deleteRoutine(id)
     }
+  }
+
+  const formatDaysOfWeek = (days: number[] | undefined) => {
+    if (!days || days.length === 0) return '毎日'
+    if (days.length === 7) return '毎日'
+    return days
+      .sort((a, b) => a - b)
+      .map(d => DAYS_OF_WEEK[d])
+      .join(', ')
+  }
+
+  const formatTime = (time: string | null) => {
+    if (!time) return ''
+    return time.slice(0, 5)
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-slate-500">読み込み中...</div>
+      <div className="container mx-auto px-4 py-6 max-w-2xl">
+        <div className="text-center py-12 text-gray-500">読み込み中...</div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">ルーティン管理</h1>
-          <p className="text-sm text-slate-500 mt-1">毎日繰り返すタスクを設定します</p>
-        </div>
-        <Button 
-          onClick={handleAdd}
-          className="bg-blue-500 hover:bg-blue-600 text-white"
-        >
+    <div className="container mx-auto px-4 py-6 max-w-2xl">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-bold">ルーティン管理</h1>
+        <Button onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />
-          追加
+          新規作成
         </Button>
       </div>
 
       {routines.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-          <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-          <p className="text-slate-500 mb-4">ルーティンが登録されていません</p>
-          <Button 
-            onClick={handleAdd}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            最初のルーティンを追加
-          </Button>
+        <div className="text-center py-12 text-gray-500">
+          ルーティンがありません
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="divide-y divide-slate-100">
-            {routines.map((routine) => (
-              <div
-                key={routine.id}
-                className={`p-4 transition-colors ${
-                  routine.is_active ? 'bg-white' : 'bg-slate-50'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span
-                        className={`font-medium ${
-                          routine.is_active ? 'text-slate-800' : 'text-slate-400'
-                        }`}
-                      >
-                        {routine.title}
+        <div className="space-y-3">
+          {routines.map((routine) => (
+            <Card
+              key={routine.id}
+              className={cn(
+                'transition-opacity',
+                !routine.is_active && 'opacity-50'
+              )}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">{routine.title}</h3>
+                      <span className={cn('text-xs', priorityColors[routine.priority || 'medium'])}>
+                        {priorityLabels[routine.priority || 'medium']}
                       </span>
-                      
+                    </div>
+                    {routine.memo && (
+                      <p className="text-sm text-gray-500 mt-1">{routine.memo}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                      <span>{formatDaysOfWeek(routine.days_of_week)}</span>
+                      {routine.has_time && routine.time && (
+                        <span>{formatTime(routine.time)}</span>
+                      )}
                       {routine.category && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-slate-100 text-slate-600">
+                        <span
+                          className="px-2 py-0.5 rounded-full text-white"
+                          style={{ backgroundColor: routine.category.color }}
+                        >
                           {routine.category.name}
                         </span>
                       )}
-
-                      {routine.has_time && routine.time && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md bg-blue-50 text-blue-600">
-                          <Clock className="h-3 w-3" />
-                          {routine.time.slice(0, 5)}
-                        </span>
-                      )}
-
-                      {!routine.is_active && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-slate-200 text-slate-600">
-                          無効
-                        </span>
-                      )}
                     </div>
-
-                    {routine.memo && (
-                      <p className={`text-sm ${
-                        routine.is_active ? 'text-slate-500' : 'text-slate-400'
-                      }`}>
-                        {routine.memo}
-                      </p>
-                    )}
                   </div>
-
                   <div className="flex items-center gap-1">
                     <Button
-                      size="icon"
                       variant="ghost"
-                      className="h-8 w-8"
+                      size="icon"
                       onClick={() => handleToggleActive(routine)}
-                      title={routine.is_active ? '無効化' : '有効化'}
+                      title={routine.is_active ? '無効にする' : '有効にする'}
                     >
                       {routine.is_active ? (
-                        <Power className="h-4 w-4 text-green-600" />
+                        <ToggleRight className="h-4 w-4 text-green-500" />
                       ) : (
-                        <PowerOff className="h-4 w-4 text-slate-400" />
+                        <ToggleLeft className="h-4 w-4 text-gray-400" />
                       )}
                     </Button>
                     <Button
-                      size="icon"
                       variant="ghost"
-                      className="h-8 w-8"
+                      size="icon"
                       onClick={() => handleEdit(routine)}
                     >
-                      <Pencil className="h-4 w-4 text-slate-500" />
+                      <Edit2 className="h-4 w-4" />
                     </Button>
                     <Button
-                      size="icon"
                       variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => setDeletingRoutine(routine)}
+                      size="icon"
+                      onClick={() => handleDelete(routine.id)}
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
       <RoutineDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        routine={editingRoutine}
+        onSubmit={handleSubmit}
         categories={categories}
+        initialData={editingRoutine}
       />
-
-      <AlertDialog open={!!deletingRoutine} onOpenChange={() => setDeletingRoutine(null)}>
-        <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>ルーティンを削除しますか？</AlertDialogTitle>
-            <AlertDialogDescription>
-              「{deletingRoutine?.title}」を削除します。この操作は取り消せません。
-              <br />
-              既に生成されたタスクは削除されません。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">キャンセル</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="rounded-xl bg-red-600 hover:bg-red-700"
-            >
-              削除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

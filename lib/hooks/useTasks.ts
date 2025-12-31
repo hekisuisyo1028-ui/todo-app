@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Task, CreateTaskInput, UpdateTaskInput } from '@/types'
+import type { Task, CreateTaskInput, UpdateTaskInput } from '@/types'
 
 // 優先度の重み付け（高→中→低の順）
 const priorityOrder: Record<string, number> = {
@@ -48,7 +48,7 @@ export function useTasks() {
 
       const { data, error } = await supabase
         .from('tasks')
-        .select('*')
+        .select('*, category:categories(*)')
         .eq('user_id', user.id)
         .eq('task_date', date)
         .order('created_at', { ascending: true })
@@ -78,7 +78,7 @@ export function useTasks() {
           user_id: user.id,
           sort_order: 0,
         })
-        .select()
+        .select('*, category:categories(*)')
         .single()
 
       if (error) throw error
@@ -97,9 +97,9 @@ export function useTasks() {
     try {
       const { data, error } = await supabase
         .from('tasks')
-        .update(input)
+        .update({ ...input, updated_at: new Date().toISOString() })
         .eq('id', id)
-        .select()
+        .select('*, category:categories(*)')
         .single()
 
       if (error) throw error
@@ -152,73 +152,5 @@ export function useTasks() {
     deleteTask,
     toggleComplete,
     reorderTasks,
-  }
-}
-
-// 週間ビュー用のhook
-export function useWeekTasks() {
-  const [tasksByDate, setTasksByDate] = useState<Record<string, Task[]>>({})
-  const [loading, setLoading] = useState(false)
-  const supabase = createClient()
-
-  const fetchWeekTasks = useCallback(async (dates: Date[]) => {
-    setLoading(true)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const dateStrings = dates.map(d => d.toISOString().split('T')[0])
-      
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*, category:categories(*)')
-        .eq('user_id', user.id)
-        .in('task_date', dateStrings)
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
-
-      // 日付ごとにグループ化し、優先度順にソート
-      const grouped: Record<string, Task[]> = {}
-      for (const dateStr of dateStrings) {
-        const tasksForDate = (data || []).filter(t => t.task_date === dateStr)
-        grouped[dateStr] = sortTasksByPriority(tasksForDate)
-      }
-      setTasksByDate(grouped)
-    } catch (err) {
-      console.error('週間タスクの取得に失敗しました:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [supabase])
-
-  const updateTaskInWeek = useCallback((updatedTask: Task) => {
-    setTasksByDate(prev => {
-      const newState = { ...prev }
-      for (const date of Object.keys(newState)) {
-        newState[date] = sortTasksByPriority(
-          newState[date].map(t => t.id === updatedTask.id ? updatedTask : t)
-        )
-      }
-      return newState
-    })
-  }, [])
-
-  const removeTaskFromWeek = useCallback((taskId: string) => {
-    setTasksByDate(prev => {
-      const newState = { ...prev }
-      for (const date of Object.keys(newState)) {
-        newState[date] = newState[date].filter(t => t.id !== taskId)
-      }
-      return newState
-    })
-  }, [])
-
-  return {
-    tasksByDate,
-    loading,
-    fetchWeekTasks,
-    updateTaskInWeek,
-    removeTaskFromWeek,
   }
 }

@@ -18,7 +18,7 @@ export default function HomePage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   
-  const { tasks, loading, fetchTasks, createTask, updateTask, deleteTask, toggleComplete } = useTasks()
+  const { tasks, loading, fetchTasks, createTask, updateTask, deleteTask, toggleComplete, reorderTasks } = useTasks()
   const { categories } = useCategories()
   const { generateRoutineTasks } = useRoutines()
   const supabase = createClient()
@@ -129,8 +129,7 @@ export default function HomePage() {
   }
 
   const handleReorderTasks = async (reorderedTasks: Task[]) => {
-    // 優先度順ソートを維持するため、特に処理は不要
-    // 必要に応じてここでDB更新を行う
+    await reorderTasks(reorderedTasks)
   }
 
   return (

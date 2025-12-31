@@ -15,8 +15,7 @@ import { TaskItem } from '@/components/tasks/TaskItem'
 import { TaskForm } from '@/components/tasks/TaskForm'
 import { useCategories } from '@/lib/hooks/useCategories'
 import { createClient } from '@/lib/supabase/client'
-import { formatDateISO, formatDate } from '@/lib/utils'
-import { addDays } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import type { Task, TaskFormData } from '@/types'
 
 // 優先度の重み付け（高→中→低の順）
@@ -27,25 +26,28 @@ const priorityOrder: Record<string, number> = {
 }
 
 // タスクを優先度順にソートする関数
-// 1. 未完了タスクが上、完了済みタスクが下
-// 2. 同じ完了状態内では優先度順（高→中→低）
-// 3. 同じ優先度内では作成日時順（古い順）
 const sortTasksByPriority = (tasks: Task[]): Task[] => {
   return [...tasks].sort((a, b) => {
-    // 1. 完了状態でソート（未完了が上）
     if (a.is_completed !== b.is_completed) {
       return a.is_completed ? 1 : -1
     }
-    
-    // 2. 優先度でソート
     const priorityA = priorityOrder[a.priority] ?? 999
     const priorityB = priorityOrder[b.priority] ?? 999
     const priorityDiff = priorityA - priorityB
     if (priorityDiff !== 0) return priorityDiff
-    
-    // 3. 作成日時でソート（古い順）
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   })
+}
+
+// 日付フォーマット
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return format(date, 'yyyy年M月d日')
+}
+
+// 日付をISO形式に変換
+const formatDateISO = (date: Date) => {
+  return format(date, 'yyyy-MM-dd')
 }
 
 export default function SearchPage() {
@@ -66,32 +68,41 @@ export default function SearchPage() {
     setLoading(true)
     setHasSearched(true)
 
-    let queryBuilder = supabase
-      .from('tasks')
-      .select('*, category:categories(*)')
-      .or(`title.ilike.%${query}%,memo.ilike.%${query}%`)
-      .order('task_date', { ascending: false })
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    // Date filter
-    const today = formatDateISO(new Date())
-    if (dateFilter === 'today') {
-      queryBuilder = queryBuilder.eq('task_date', today)
-    } else if (dateFilter === 'week') {
-      const weekAgo = formatDateISO(addDays(new Date(), -7))
-      queryBuilder = queryBuilder.gte('task_date', weekAgo)
-    } else if (dateFilter === 'month') {
-      const monthAgo = formatDateISO(addDays(new Date(), -30))
-      queryBuilder = queryBuilder.gte('task_date', monthAgo)
+      let queryBuilder = supabase
+        .from('tasks')
+        .select('*, category:categories(*)')
+        .eq('user_id', user.id)
+        .or(`title.ilike.%${query}%,memo.ilike.%${query}%`)
+        .order('task_date', { ascending: false })
+
+      // Date filter
+      const today = formatDateISO(new Date())
+      if (dateFilter === 'today') {
+        queryBuilder = queryBuilder.eq('task_date', today)
+      } else if (dateFilter === 'week') {
+        const weekAgo = formatDateISO(addDays(new Date(), -7))
+        queryBuilder = queryBuilder.gte('task_date', weekAgo)
+      } else if (dateFilter === 'month') {
+        const monthAgo = formatDateISO(addDays(new Date(), -30))
+        queryBuilder = queryBuilder.gte('task_date', monthAgo)
+      }
+
+      const { data, error } = await queryBuilder.limit(50)
+
+      if (error) {
+        console.error('Search error:', error)
+      } else {
+        setResults(data || [])
+      }
+    } catch (err) {
+      console.error('Search error:', err)
+    } finally {
+      setLoading(false)
     }
-
-    const { data, error } = await queryBuilder.limit(50)
-
-    if (error) {
-      console.error('Search error:', error)
-    } else {
-      setResults(data || [])
-    }
-    setLoading(false)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -156,7 +167,10 @@ export default function SearchPage() {
     const { data, error } = await supabase
       .from('tasks')
       .update({
-        ...formData,
+        title: formData.title,
+        memo: formData.memo,
+        category_id: formData.category_id,
+        priority: formData.priority,
         updated_at: new Date().toISOString(),
       })
       .eq('id', editingTask.id)
@@ -167,6 +181,7 @@ export default function SearchPage() {
       setResults(prev => sortTasksByPriority(prev.map(t => t.id === editingTask.id ? data : t)))
     }
     setEditingTask(null)
+    setIsFormOpen(false)
   }
 
   const handleFormClose = (open: boolean) => {
@@ -266,14 +281,16 @@ export default function SearchPage() {
       )}
 
       {/* Task Form Dialog */}
-      <TaskForm
-        open={isFormOpen}
-        onOpenChange={handleFormClose}
-        onSubmit={handleUpdateTask}
-        categories={categories}
-        initialData={editingTask}
-        defaultDate={formatDateISO(new Date())}
-      />
+      {editingTask && (
+        <TaskForm
+          open={isFormOpen}
+          onOpenChange={handleFormClose}
+          onSubmit={handleUpdateTask}
+          categories={categories}
+          defaultDate={editingTask.task_date}
+          initialData={editingTask}
+        />
+      )}
     </div>
   )
 }
