@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { TaskList } from '@/components/tasks/TaskList'
 import { TaskForm } from '@/components/tasks/TaskForm'
 import { useTasks } from '@/lib/hooks/useTasks'
-import { useCategories } from '@/lib/hooks/useCategories'
 import { useRoutines } from '@/lib/hooks/useRoutines'
 import { createClient } from '@/lib/supabase/client'
 import type { Task, TaskFormData } from '@/types'
@@ -19,7 +18,6 @@ export default function HomePage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   
   const { tasks, loading, fetchTasks, createTask, updateTask, deleteTask, toggleComplete } = useTasks()
-  const { categories } = useCategories()
   const { generateRoutineTasks } = useRoutines()
   const supabase = createClient()
 
@@ -41,12 +39,11 @@ export default function HomePage() {
         .eq('user_id', user.id)
         .eq('is_completed', false)
         .lt('task_date', today)
-        .is('routine_id', null)  // ルーティンタスクを除外
+        .is('routine_id', null)
 
       if (error) throw error
 
       if (incompleteTasks && incompleteTasks.length > 0) {
-        // 今日の日付に更新
         for (const task of incompleteTasks) {
           await supabase
             .from('tasks')
@@ -157,7 +154,6 @@ export default function HomePage() {
       {loading ? (
         <div className="text-center py-12 text-gray-500">読み込み中...</div>
       ) : (
-        /* タスク一覧 */
         <TaskList
           tasks={tasks}
           onToggleComplete={handleToggleComplete}
@@ -180,19 +176,17 @@ export default function HomePage() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         onSubmit={handleCreateTask}
-        categories={categories}
-        defaultDate={dateString}
       />
 
       {/* タスク編集フォーム */}
-      <TaskForm
-        open={!!editingTask}
-        onOpenChange={(open) => !open && setEditingTask(null)}
-        onSubmit={handleUpdateTask}
-        categories={categories}
-        initialData={editingTask}
-        defaultDate={dateString}
-      />
+      {editingTask && (
+        <TaskForm
+          open={!!editingTask}
+          onOpenChange={(open) => !open && setEditingTask(null)}
+          onSubmit={handleUpdateTask}
+          defaultValues={editingTask}
+        />
+      )}
     </div>
   )
 }
