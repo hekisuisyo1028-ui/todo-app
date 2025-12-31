@@ -1,7 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,122 +18,140 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { useToast } from '@/components/ui/use-toast'
-import { useRoutines } from '@/lib/hooks/useRoutines'
-import type { Routine, Category, RoutineFormData } from '@/types'
+import { Switch } from '@/components/ui/switch'
+import type { Routine, RoutineFormData, Category } from '@/types'
 
 interface RoutineDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  routine: Routine | null
+  onSubmit: (data: RoutineFormData) => Promise<void>
   categories: Category[]
+  initialData?: Routine | null
 }
 
-export function RoutineDialog({ open, onOpenChange, routine, categories }: RoutineDialogProps) {
+export function RoutineDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  categories,
+  initialData,
+}: RoutineDialogProps) {
   const [formData, setFormData] = useState<RoutineFormData>({
     title: '',
     memo: '',
-    category_id: undefined,
+    category_id: null,
+    priority: 'medium',
     has_time: false,
-    time: '09:00',
+    time: '',
+    days_of_week: [],
   })
-  const [saving, setSaving] = useState(false)
-
-  const { addRoutine, updateRoutine } = useRoutines()
-  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (routine) {
+    if (initialData) {
       setFormData({
-        title: routine.title,
-        memo: routine.memo || '',
-        category_id: routine.category_id || undefined,
-        has_time: routine.has_time,
-        time: routine.time ? routine.time.slice(0, 5) : '09:00',
+        title: initialData.title,
+        memo: initialData.memo || '',
+        category_id: initialData.category_id,
+        priority: initialData.priority || 'medium',
+        has_time: initialData.has_time,
+        time: initialData.time?.slice(0, 5) || '',
+        days_of_week: initialData.days_of_week || [],
       })
     } else {
       setFormData({
         title: '',
         memo: '',
-        category_id: undefined,
+        category_id: null,
+        priority: 'medium',
         has_time: false,
-        time: '09:00',
+        time: '',
+        days_of_week: [],
       })
     }
-  }, [routine, open])
+  }, [initialData, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.title.trim()) {
-      toast({
-        title: 'エラー',
-        description: 'タイトルを入力してください。',
-        variant: 'destructive',
-      })
-      return
-    }
+    if (!formData.title.trim()) return
 
-    setSaving(true)
-
-    const result = routine
-      ? await updateRoutine(routine.id, formData)
-      : await addRoutine(formData)
-
-    if (result) {
-      toast({
-        title: routine ? '更新完了' : '追加完了',
-        description: routine ? 'ルーティンを更新しました。' : 'ルーティンを追加しました。',
-      })
+    setLoading(true)
+    try {
+      await onSubmit(formData)
       onOpenChange(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleDayOfWeek = (day: number) => {
+    const currentDays = formData.days_of_week || []
+    if (currentDays.includes(day)) {
+      setFormData({
+        ...formData,
+        days_of_week: currentDays.filter(d => d !== day),
+      })
     } else {
-      toast({
-        title: 'エラー',
-        description: 'ルーティンの保存に失敗しました。',
-        variant: 'destructive',
+      setFormData({
+        ...formData,
+        days_of_week: [...currentDays, day],
       })
     }
-
-    setSaving(false)
   }
+
+  const DAYS_OF_WEEK = [
+    { value: 1, label: '月' },
+    { value: 2, label: '火' },
+    { value: 3, label: '水' },
+    { value: 4, label: '木' },
+    { value: 5, label: '金' },
+    { value: 6, label: '土' },
+    { value: 0, label: '日' },
+  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] rounded-2xl">
+      <DialogContent className="sm:max-w-md bg-white">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
-            {routine ? 'ルーティンを編集' : 'ルーティンを追加'}
+          <DialogTitle className="text-slate-900">
+            {initialData ? 'ルーティンを編集' : '新しいルーティン'}
           </DialogTitle>
         </DialogHeader>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
+          {/* タイトル */}
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-slate-700">
-              タイトル <span className="text-red-500">*</span>
-            </Label>
+            <Label htmlFor="title" className="text-slate-700">タイトル</Label>
             <Input
               id="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="例: 朝の運動"
+              placeholder="ルーティン名を入力"
               className="bg-white border-slate-200"
-              autoFocus
+              required
             />
           </div>
 
-          {/* Category */}
+          {/* メモ */}
           <div className="space-y-2">
-            <Label htmlFor="category" className="text-slate-700">カテゴリ</Label>
+            <Label htmlFor="memo" className="text-slate-700">メモ</Label>
+            <Textarea
+              id="memo"
+              value={formData.memo || ''}
+              onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+              placeholder="メモを入力（任意）"
+              className="bg-white border-slate-200"
+              rows={3}
+            />
+          </div>
+
+          {/* カテゴリ */}
+          <div className="space-y-2">
+            <Label className="text-slate-700">カテゴリ</Label>
             <Select
               value={formData.category_id || 'none'}
-              onValueChange={(value) => setFormData({ ...formData, category_id: value === 'none' ? undefined : value })}
+              onValueChange={(value) =>
+                setFormData({ ...formData, category_id: value === 'none' ? null : value })
+              }
             >
               <SelectTrigger className="bg-white border-slate-200">
                 <SelectValue placeholder="カテゴリを選択" />
@@ -144,67 +167,83 @@ export function RoutineDialog({ open, onOpenChange, routine, categories }: Routi
             </Select>
           </div>
 
-          {/* Time Setting */}
+          {/* 優先度 */}
           <div className="space-y-2">
-            <Label className="text-slate-700">時刻設定</Label>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={!formData.has_time}
-                  onChange={() => setFormData({ ...formData, has_time: false })}
-                  className="w-4 h-4 text-blue-500"
-                />
-                <span className="text-sm text-slate-700">終日</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={formData.has_time}
-                  onChange={() => setFormData({ ...formData, has_time: true })}
-                  className="w-4 h-4 text-blue-500"
-                />
-                <span className="text-sm text-slate-700">時刻指定</span>
-              </label>
-            </div>
-            {formData.has_time && (
-              <Input
-                type="time"
-                value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                className="w-32 bg-white border-slate-200"
-              />
-            )}
+            <Label className="text-slate-700">優先度</Label>
+            <Select
+              value={formData.priority || 'medium'}
+              onValueChange={(value: 'high' | 'medium' | 'low') =>
+                setFormData({ ...formData, priority: value })
+              }
+            >
+              <SelectTrigger className="bg-white border-slate-200">
+                <SelectValue placeholder="優先度を選択" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high">高</SelectItem>
+                <SelectItem value="medium">中</SelectItem>
+                <SelectItem value="low">低</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Memo */}
+          {/* 曜日選択 */}
           <div className="space-y-2">
-            <Label htmlFor="memo" className="text-slate-700">メモ</Label>
-            <Textarea
-              id="memo"
-              value={formData.memo}
-              onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-              placeholder="詳細な説明を入力..."
-              className="bg-white border-slate-200 min-h-[100px] resize-none"
+            <Label className="text-slate-700">実行する曜日</Label>
+            <div className="flex gap-1">
+              {DAYS_OF_WEEK.map((day) => (
+                <Button
+                  key={day.value}
+                  type="button"
+                  variant={(formData.days_of_week || []).includes(day.value) ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-9 h-9 p-0"
+                  onClick={() => toggleDayOfWeek(day.value)}
+                >
+                  {day.label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">
+              選択しない場合は毎日実行されます
+            </p>
+          </div>
+
+          {/* 時間設定 */}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="has_time" className="text-slate-700">時間を設定</Label>
+            <Switch
+              id="has_time"
+              checked={formData.has_time}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, has_time: checked, time: checked ? (formData.time || '') : '' })
+              }
             />
           </div>
 
-          {/* Actions */}
+          {formData.has_time && (
+            <div className="space-y-2">
+              <Label htmlFor="time" className="text-slate-700">時間</Label>
+              <Input
+                type="time"
+                value={formData.time || ''}
+                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                className="w-32 bg-white border-slate-200"
+              />
+            </div>
+          )}
+
+          {/* 送信ボタン */}
           <div className="flex justify-end gap-2 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="rounded-xl"
             >
               キャンセル
             </Button>
-            <Button
-              type="submit"
-              disabled={saving}
-              className="rounded-xl bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              {saving ? '保存中...' : routine ? '更新' : '追加'}
+            <Button type="submit" disabled={loading}>
+              {loading ? '保存中...' : initialData ? '更新' : '作成'}
             </Button>
           </div>
         </form>
