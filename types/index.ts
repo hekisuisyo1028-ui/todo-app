@@ -23,6 +23,7 @@ export type Category = {
   user_id: string
   name: string
   color: string
+  sort_order: number  // 追加
   created_at: string
   updated_at: string
 }
