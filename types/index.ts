@@ -24,6 +24,7 @@ export type Category = {
   name: string
   color: string
   sort_order: number  // 追加
+  is_default: boolean  // ← この行を追加
   created_at: string
   updated_at: string
 }
