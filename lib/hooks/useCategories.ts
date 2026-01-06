@@ -62,7 +62,7 @@ export function useCategories() {
         color,
         user_id: user.id,
         sort_order: maxOrder,
-        is_default: false,
+        // is_default を削除（DBスキーマに存在しない）
       })
       .select()
       .single()

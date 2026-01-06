@@ -140,16 +140,7 @@ export default function SettingsPage() {
   }
 
   const handleDeleteCategory = async (id: string) => {
-    const category = categories.find(c => c.id === id)
-    if (category?.is_default) {
-      toast({
-        title: 'エラー',
-        description: 'デフォルトカテゴリは削除できません。',
-        variant: 'destructive',
-      })
-      return
-    }
-
+    // is_default チェックを削除（DBスキーマに存在しない）
     const result = await deleteCategory(id)
     if (result) {
       toast({
@@ -330,9 +321,6 @@ export default function SettingsPage() {
                       >
                         {category.name}
                       </span>
-                      {category.is_default && (
-                        <span className="text-xs text-slate-400">(デフォルト)</span>
-                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       <Button
@@ -343,16 +331,14 @@ export default function SettingsPage() {
                       >
                         <Pencil className="h-4 w-4 text-slate-500" />
                       </Button>
-                      {!category.is_default && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => handleDeleteCategory(category.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => handleDeleteCategory(category.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
                     </div>
                   </>
                 )}
