@@ -18,18 +18,10 @@ import { RoutineDialog } from '@/components/routines/RoutineDialog'
 import { useCategories } from '@/lib/hooks/useCategories'
 import { useRoutines } from '@/lib/hooks/useRoutines'
 import { cn } from '@/lib/utils'
-import type { Routine, Priority } from '@/types'
+import type { Routine, Priority, RoutineFormData } from '@/types'  // ← RoutineFormDataをインポート
 import { PRIORITY_CONFIG } from '@/types'
 
-interface RoutineFormData {
-  title: string
-  memo?: string
-  priority: Priority
-  category_id?: string
-  frequency: 'daily' | 'weekly' | 'monthly'
-  day_of_week?: number
-  day_of_month?: number
-}
+// ローカルのRoutineFormData定義を削除
 
 export default function RoutinesSettingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)

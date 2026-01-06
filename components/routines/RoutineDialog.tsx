@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -18,19 +19,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { Routine, Category, Priority } from '@/types'
+import type { Routine, Category, Priority, RoutineFormData } from '@/types'
 import { PRIORITY_CONFIG } from '@/types'
 import { cn } from '@/lib/utils'
-
-interface RoutineFormData {
-  title: string
-  memo?: string
-  priority: Priority
-  category_id?: string
-  frequency: 'daily' | 'weekly' | 'monthly'
-  day_of_week?: number
-  day_of_month?: number
-}
 
 interface RoutineDialogProps {
   open: boolean
@@ -54,6 +45,8 @@ export function RoutineDialog({
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const [dayOfWeek, setDayOfWeek] = useState<number>(1)
   const [dayOfMonth, setDayOfMonth] = useState<number>(1)
+  const [hasTime, setHasTime] = useState(false)
+  const [scheduledTime, setScheduledTime] = useState('09:00')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // 選択中のカテゴリを取得
@@ -68,6 +61,8 @@ export function RoutineDialog({
       setFrequency(initialData.frequency)
       setDayOfWeek(initialData.day_of_week ?? 1)
       setDayOfMonth(initialData.day_of_month ?? 1)
+      setHasTime(initialData.has_time ?? false)
+      setScheduledTime(initialData.scheduled_time || '09:00')
     } else {
       setTitle('')
       setMemo('')
@@ -76,6 +71,8 @@ export function RoutineDialog({
       setFrequency('daily')
       setDayOfWeek(1)
       setDayOfMonth(1)
+      setHasTime(false)
+      setScheduledTime('09:00')
     }
   }, [initialData, open])
 
@@ -92,6 +89,8 @@ export function RoutineDialog({
       frequency,
       day_of_week: frequency === 'weekly' ? dayOfWeek : undefined,
       day_of_month: frequency === 'monthly' ? dayOfMonth : undefined,
+      has_time: hasTime,
+      scheduled_time: hasTime ? scheduledTime : undefined,
     })
     setIsSubmitting(false)
     onOpenChange(false)
@@ -195,6 +194,25 @@ export function RoutineDialog({
               </Select>
             </div>
           )}
+
+          {/* Time Setting */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-slate-700">時刻を指定</Label>
+              <Switch
+                checked={hasTime}
+                onCheckedChange={setHasTime}
+              />
+            </div>
+            {hasTime && (
+              <Input
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="h-12 rounded-xl bg-white border-slate-200 w-32"
+              />
+            )}
+          </div>
 
           {/* Priority */}
           <div className="space-y-2">
