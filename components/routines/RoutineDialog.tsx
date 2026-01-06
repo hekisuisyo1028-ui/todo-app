@@ -31,6 +31,16 @@ interface RoutineDialogProps {
   initialData?: Routine | null
 }
 
+const WEEK_DAYS = [
+  { value: 0, label: '日' },
+  { value: 1, label: '月' },
+  { value: 2, label: '火' },
+  { value: 3, label: '水' },
+  { value: 4, label: '木' },
+  { value: 5, label: '金' },
+  { value: 6, label: '土' },
+]
+
 export function RoutineDialog({
   open,
   onOpenChange,
@@ -42,11 +52,9 @@ export function RoutineDialog({
   const [memo, setMemo] = useState('')
   const [priority, setPriority] = useState<Priority>('medium')
   const [categoryId, setCategoryId] = useState<string>('none')
-  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('daily')
-  const [dayOfWeek, setDayOfWeek] = useState<number>(1)
-  const [dayOfMonth, setDayOfMonth] = useState<number>(1)
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1, 2, 3, 4, 5]) // 平日デフォルト
   const [hasTime, setHasTime] = useState(false)
-  const [scheduledTime, setScheduledTime] = useState('09:00')
+  const [time, setTime] = useState('09:00')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // 選択中のカテゴリを取得
@@ -58,27 +66,25 @@ export function RoutineDialog({
       setMemo(initialData.memo || '')
       setPriority(initialData.priority)
       setCategoryId(initialData.category_id || 'none')
-      setFrequency(initialData.frequency)
-      setDayOfWeek(initialData.day_of_week ?? 1)
-      setDayOfMonth(initialData.day_of_month ?? 1)
+      setDaysOfWeek(initialData.days_of_week || [1, 2, 3, 4, 5])
       setHasTime(initialData.has_time ?? false)
-      setScheduledTime(initialData.scheduled_time || '09:00')
+      // time は "HH:MM:SS" 形式で保存されているので "HH:MM" に変換
+      setTime(initialData.time ? initialData.time.slice(0, 5) : '09:00')
     } else {
       setTitle('')
       setMemo('')
       setPriority('medium')
       setCategoryId('none')
-      setFrequency('daily')
-      setDayOfWeek(1)
-      setDayOfMonth(1)
+      setDaysOfWeek([1, 2, 3, 4, 5])
       setHasTime(false)
-      setScheduledTime('09:00')
+      setTime('09:00')
     }
   }, [initialData, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
+    if (daysOfWeek.length === 0) return
 
     setIsSubmitting(true)
     await onSubmit({
@@ -86,25 +92,21 @@ export function RoutineDialog({
       memo: memo.trim() || undefined,
       priority,
       category_id: categoryId === 'none' ? undefined : categoryId,
-      frequency,
-      day_of_week: frequency === 'weekly' ? dayOfWeek : undefined,
-      day_of_month: frequency === 'monthly' ? dayOfMonth : undefined,
+      days_of_week: daysOfWeek,
       has_time: hasTime,
-      scheduled_time: hasTime ? scheduledTime : undefined,
+      time: hasTime ? time : undefined,
     })
     setIsSubmitting(false)
     onOpenChange(false)
   }
 
-  const weekDays = [
-    { value: 1, label: '月曜日' },
-    { value: 2, label: '火曜日' },
-    { value: 3, label: '水曜日' },
-    { value: 4, label: '木曜日' },
-    { value: 5, label: '金曜日' },
-    { value: 6, label: '土曜日' },
-    { value: 0, label: '日曜日' },
-  ]
+  const toggleDayOfWeek = (day: number) => {
+    setDaysOfWeek(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day].sort((a, b) => a - b)
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,69 +133,33 @@ export function RoutineDialog({
             />
           </div>
 
-          {/* Frequency */}
+          {/* Days of Week */}
           <div className="space-y-2">
-            <Label className="text-slate-700">繰り返し</Label>
+            <Label className="text-slate-700">
+              繰り返す曜日 <span className="text-red-500">*</span>
+            </Label>
             <div className="flex gap-2">
-              {[
-                { value: 'daily', label: '毎日' },
-                { value: 'weekly', label: '毎週' },
-                { value: 'monthly', label: '毎月' },
-              ].map((option) => (
+              {WEEK_DAYS.map((day) => (
                 <button
-                  key={option.value}
+                  key={day.value}
                   type="button"
-                  onClick={() => setFrequency(option.value as typeof frequency)}
+                  onClick={() => toggleDayOfWeek(day.value)}
                   className={cn(
-                    'flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all border-2',
-                    frequency === option.value
-                      ? 'bg-blue-50 border-blue-300 text-blue-700'
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    'w-10 h-10 rounded-full text-sm font-medium transition-all border-2',
+                    daysOfWeek.includes(day.value)
+                      ? 'bg-blue-500 border-blue-500 text-white'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300',
+                    (day.value === 0 || day.value === 6) && !daysOfWeek.includes(day.value) && 'text-red-400'
                   )}
                 >
-                  {option.label}
+                  {day.label}
                 </button>
               ))}
             </div>
+            {daysOfWeek.length === 0 && (
+              <p className="text-sm text-red-500">少なくとも1つの曜日を選択してください</p>
+            )}
           </div>
-
-          {/* Day of Week (for weekly) */}
-          {frequency === 'weekly' && (
-            <div className="space-y-2">
-              <Label className="text-slate-700">曜日</Label>
-              <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
-                <SelectTrigger className="h-12 rounded-xl bg-white border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {weekDays.map((day) => (
-                    <SelectItem key={day.value} value={day.value.toString()}>
-                      {day.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Day of Month (for monthly) */}
-          {frequency === 'monthly' && (
-            <div className="space-y-2">
-              <Label className="text-slate-700">日付</Label>
-              <Select value={dayOfMonth.toString()} onValueChange={(v) => setDayOfMonth(parseInt(v))}>
-                <SelectTrigger className="h-12 rounded-xl bg-white border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white max-h-60">
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                    <SelectItem key={day} value={day.toString()}>
-                      {day}日
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           {/* Time Setting */}
           <div className="space-y-3">
@@ -207,8 +173,8 @@ export function RoutineDialog({
             {hasTime && (
               <Input
                 type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
                 className="h-12 rounded-xl bg-white border-slate-200 w-32"
               />
             )}
@@ -307,7 +273,7 @@ export function RoutineDialog({
             </Button>
             <Button 
               type="submit" 
-              disabled={isSubmitting || !title.trim()}
+              disabled={isSubmitting || !title.trim() || daysOfWeek.length === 0}
               className="flex-1 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
             >
               {initialData ? '更新' : '追加'}

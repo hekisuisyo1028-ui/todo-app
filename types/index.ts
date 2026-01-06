@@ -45,7 +45,7 @@ export interface TaskFormData {
   task_date: string
 }
 
-// Routine type
+// Routine type (DBスキーマに合わせた定義)
 export interface Routine {
   id: string
   user_id: string
@@ -53,28 +53,24 @@ export interface Routine {
   title: string
   memo: string | null
   priority: Priority
-  frequency: 'daily' | 'weekly' | 'monthly'
-  day_of_week: number | null
-  day_of_month: number | null
   has_time: boolean
-  scheduled_time: string | null
+  time: string | null
+  days_of_week: number[]
   is_active: boolean
   created_at: string
   updated_at: string
   category?: Category
 }
 
-// RoutineFormData type
+// RoutineFormData type (useRoutines.tsの実装に合わせた定義)
 export interface RoutineFormData {
   title: string
   memo?: string
   priority: Priority
   category_id?: string
-  frequency: 'daily' | 'weekly' | 'monthly'
-  day_of_week?: number
-  day_of_month?: number
   has_time: boolean
-  scheduled_time?: string
+  time?: string
+  days_of_week?: number[]
 }
 
 // Profile type

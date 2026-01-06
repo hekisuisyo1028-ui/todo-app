@@ -18,10 +18,10 @@ import { RoutineDialog } from '@/components/routines/RoutineDialog'
 import { useCategories } from '@/lib/hooks/useCategories'
 import { useRoutines } from '@/lib/hooks/useRoutines'
 import { cn } from '@/lib/utils'
-import type { Routine, Priority, RoutineFormData } from '@/types'  // ← RoutineFormDataをインポート
+import type { Routine, RoutineFormData } from '@/types'
 import { PRIORITY_CONFIG } from '@/types'
 
-// ローカルのRoutineFormData定義を削除
+const WEEK_DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
 
 export default function RoutinesSettingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -93,18 +93,12 @@ export default function RoutinesSettingsPage() {
     }
   }
 
-  const getFrequencyLabel = (routine: Routine) => {
-    switch (routine.frequency) {
-      case 'daily':
-        return '毎日'
-      case 'weekly':
-        const days = ['日', '月', '火', '水', '木', '金', '土']
-        return `毎週${days[routine.day_of_week ?? 0]}曜日`
-      case 'monthly':
-        return `毎月${routine.day_of_month}日`
-      default:
-        return ''
-    }
+  const getDaysLabel = (routine: Routine) => {
+    const days = routine.days_of_week || []
+    if (days.length === 7) return '毎日'
+    if (days.length === 5 && !days.includes(0) && !days.includes(6)) return '平日'
+    if (days.length === 2 && days.includes(0) && days.includes(6)) return '週末'
+    return days.map(d => WEEK_DAY_LABELS[d]).join('・')
   }
 
   if (!mounted) {
@@ -175,7 +169,10 @@ export default function RoutinesSettingsPage() {
                       )}
                     </div>
                     <div className="text-sm text-slate-500">
-                      {getFrequencyLabel(routine)}
+                      {getDaysLabel(routine)}
+                      {routine.has_time && routine.time && (
+                        <span className="ml-2">{routine.time.slice(0, 5)}</span>
+                      )}
                     </div>
                   </div>
                 </div>
