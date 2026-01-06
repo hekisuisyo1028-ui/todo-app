@@ -36,13 +36,34 @@ export interface Task {
   category?: Category
 }
 
-// TaskFormData type
+// TaskFormData type (フォーム用)
 export interface TaskFormData {
   title: string
   memo?: string
   priority: Priority
   category_id?: string
   task_date: string
+}
+
+// CreateTaskInput type (タスク作成用)
+export interface CreateTaskInput {
+  title: string
+  memo?: string | null
+  priority?: Priority
+  category_id?: string | null
+  task_date: string
+  routine_id?: string | null
+}
+
+// UpdateTaskInput type (タスク更新用)
+export interface UpdateTaskInput {
+  title?: string
+  memo?: string | null
+  priority?: Priority
+  category_id?: string | null
+  task_date?: string
+  is_completed?: boolean
+  sort_order?: number
 }
 
 // Routine type (DBスキーマに合わせた定義)
