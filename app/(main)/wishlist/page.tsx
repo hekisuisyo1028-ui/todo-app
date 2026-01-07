@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { format } from 'date-fns'
 import { useWishLists } from '@/lib/hooks/useWishLists'
 import { useWishItems } from '@/lib/hooks/useWishItems'
 import { useTasks } from '@/lib/hooks/useTasks'
@@ -16,7 +17,7 @@ export default function WishlistPage() {
   const [mounted, setMounted] = useState(false)
   const [activeListId, setActiveListId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  
+
   // モーダル状態
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false)
   const [editingList, setEditingList] = useState<WishList | null>(null)
@@ -45,7 +46,8 @@ export default function WishlistPage() {
     reorderWishItems,
   } = useWishItems(activeListId)
 
-  const { createTaskForDate } = useTasks(new Date())
+  // useTasks - 日付を文字列形式で渡す
+  const { createTaskForDate } = useTasks(format(new Date(), 'yyyy-MM-dd'))
 
   // マウント時の処理
   useEffect(() => {
