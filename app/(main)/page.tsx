@@ -1,3 +1,5 @@
+// /app/(main)/page.tsx
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -132,7 +134,7 @@ export default function HomePage() {
   const isToday = selectedDate === new Date().toISOString().split('T')[0]
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
       {/* Date Navigation */}
       <div className="flex items-center justify-between">
         <Button
@@ -206,13 +208,13 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Add Task Button */}
+      {/* Floating Add Task Button - 右下固定 */}
       <Button
         onClick={() => setIsFormOpen(true)}
-        className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/25"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/30 z-50"
+        size="icon"
       >
-        <Plus className="h-5 w-5 mr-2" />
-        タスクを追加
+        <Plus className="h-6 w-6" />
       </Button>
 
       {/* Task Form Dialog */}
