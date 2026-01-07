@@ -19,7 +19,8 @@ import {
   LogOut, 
   Calendar, 
   CalendarDays,
-  User
+  User,
+  Star,  // 追加
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -42,6 +43,7 @@ export function Header() {
     { href: '/', label: '今日', icon: Calendar },
     { href: '/week', label: '週間', icon: CalendarDays },
     { href: '/search', label: '検索', icon: Search },
+    { href: '/wishlist', label: 'ウィッシュ', icon: Star },  // 追加
   ]
 
   return (
@@ -62,7 +64,8 @@ export function Header() {
           <nav className="hidden md:flex items-center bg-slate-100 rounded-full p-1">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+              const isActive = pathname === item.href || 
+                (item.href === '/wishlist' && pathname?.startsWith('/wishlist'))
               return (
                 <Link key={item.href} href={item.href}>
                   <button
@@ -85,7 +88,8 @@ export function Header() {
           <nav className="flex md:hidden items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+              const isActive = pathname === item.href ||
+                (item.href === '/wishlist' && pathname?.startsWith('/wishlist'))
               return (
                 <Link key={item.href} href={item.href}>
                   <button

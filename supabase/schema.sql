@@ -205,3 +205,82 @@ BEGIN
     ALTER TABLE routines ADD COLUMN days_of_week INTEGER[] DEFAULT ARRAY[]::INTEGER[];
   END IF;
 END $$;
+
+-- ============================================
+-- ウィッシュリスト機能
+-- ============================================
+
+-- やりたいことリスト（タブ）管理テーブル
+CREATE TABLE IF NOT EXISTS wish_lists (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  is_default BOOLEAN DEFAULT FALSE,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ウィッシュリスト/やりたいことリストのアイテム
+CREATE TABLE IF NOT EXISTS wish_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  wish_list_id UUID NOT NULL REFERENCES wish_lists(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  reason TEXT,
+  is_completed BOOLEAN DEFAULT FALSE,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- インデックス
+CREATE INDEX IF NOT EXISTS idx_wish_lists_user_id ON wish_lists(user_id);
+CREATE INDEX IF NOT EXISTS idx_wish_items_wish_list_id ON wish_items(wish_list_id);
+CREATE INDEX IF NOT EXISTS idx_wish_items_user_id ON wish_items(user_id);
+
+-- RLS (Row Level Security)
+ALTER TABLE wish_lists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wish_items ENABLE ROW LEVEL SECURITY;
+
+-- wish_lists ポリシー
+CREATE POLICY "Users can view own wish_lists" ON wish_lists
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own wish_lists" ON wish_lists
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own wish_lists" ON wish_lists
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own wish_lists" ON wish_lists
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- wish_items ポリシー
+CREATE POLICY "Users can view own wish_items" ON wish_items
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own wish_items" ON wish_items
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own wish_items" ON wish_items
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own wish_items" ON wish_items
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- 新規ユーザー登録時にデフォルトのウィッシュリストを作成するトリガー
+CREATE OR REPLACE FUNCTION create_default_wish_list()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO wish_lists (user_id, title, is_default, sort_order)
+  VALUES (NEW.id, 'ウィッシュリスト', TRUE, 0);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 既存のトリガーがあれば削除して再作成
+DROP TRIGGER IF EXISTS on_auth_user_created_wish_list ON auth.users;
+CREATE TRIGGER on_auth_user_created_wish_list
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION create_default_wish_list();

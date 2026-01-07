@@ -102,3 +102,37 @@ export interface Profile {
   created_at: string
   updated_at: string
 }
+
+// 既存の型定義に追加
+
+// ウィッシュリスト（タブ）
+export interface WishList {
+  id: string
+  user_id: string
+  title: string
+  is_default: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// ウィッシュリストアイテム
+export interface WishItem {
+  id: string
+  wish_list_id: string
+  user_id: string
+  title: string
+  reason: string | null
+  is_completed: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// 新規作成用の型
+export type WishListInsert = Omit<WishList, 'id' | 'created_at' | 'updated_at'>
+export type WishItemInsert = Omit<WishItem, 'id' | 'created_at' | 'updated_at'>
+
+// 更新用の型
+export type WishListUpdate = Partial<Omit<WishList, 'id' | 'user_id' | 'created_at'>>
+export type WishItemUpdate = Partial<Omit<WishItem, 'id' | 'user_id' | 'wish_list_id' | 'created_at'>>

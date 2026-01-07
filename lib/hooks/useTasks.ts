@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Task, CreateTaskInput, UpdateTaskInput } from '@/types'
+import { Task, CreateTaskInput, UpdateTaskInput, Priority } from '@/types'
 
 // 優先度の重み付け（高→中→低の順）
 const priorityOrder: Record<string, number> = {
@@ -90,6 +90,62 @@ export function useTasks(date: string) {
     setTasks(prev => sortTasks([...prev, data]))
     return data
   }, [supabase, tasks])
+
+  /**
+   * 任意の日付にタスクを作成する関数
+   * ウィッシュリストからTODOへの変換時に使用
+   */
+  const createTaskForDate = useCallback(async (taskData: {
+    title: string
+    task_date: string
+    priority: Priority
+    category_id: string | null
+    memo?: string
+  }): Promise<Task | null> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    // 指定日付の最大sort_orderを取得
+    const { data: existingTasks } = await supabase
+      .from('tasks')
+      .select('sort_order')
+      .eq('user_id', user.id)
+      .eq('task_date', taskData.task_date)
+      .order('sort_order', { ascending: false })
+      .limit(1)
+
+    const maxSortOrder = existingTasks?.[0]?.sort_order ?? -1
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert({
+        user_id: user.id,
+        title: taskData.title,
+        task_date: taskData.task_date,
+        priority: taskData.priority,
+        category_id: taskData.category_id,
+        memo: taskData.memo || null,
+        is_completed: false,
+        sort_order: maxSortOrder + 1,
+      })
+      .select(`
+        *,
+        category:categories(*)
+      `)
+      .single()
+
+    if (error) {
+      console.error('Error creating task for date:', error)
+      return null
+    }
+
+    // 同じ日付のタスクなら状態を更新
+    if (taskData.task_date === date) {
+      setTasks(prev => sortTasks([...prev, data]))
+    }
+
+    return data
+  }, [supabase, date])
 
   const updateTask = useCallback(async (id: string, input: UpdateTaskInput): Promise<Task | null> => {
     const { data, error } = await supabase
@@ -220,6 +276,7 @@ export function useTasks(date: string) {
     tasks,
     loading,
     createTask,
+    createTaskForDate, // 追加
     updateTask,
     deleteTask,
     toggleComplete,
