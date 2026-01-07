@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -16,34 +16,42 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { WishItem } from './WishItem'
 import { WishItemInlineForm } from './WishItemForm'
-import type { WishItem as WishItemType, WishList } from '@/types'
+import { WishListSearch } from './WishListSearch'
+import { cn } from '@/lib/utils'
+import type { WishItem as WishItemType } from '@/types'
 
 interface WishListContentProps {
-  list: WishList | null
   items: WishItemType[]
+  isDefaultList: boolean
   searchQuery: string
-  onAddItem: (data: { title: string; reason: string }) => void
-  onToggleComplete: (id: string) => void
+  onSearchChange: (query: string) => void
+  onCreateItem: (data: { title: string; reason: string }) => void
   onEditItem: (item: WishItemType) => void
   onDeleteItem: (id: string) => void
+  onToggleComplete: (id: string) => void
   onConvertToTask: (item: WishItemType) => void
-  onReorderItems: (items: WishItemType[]) => void
+  onReorderItems: (reorderedItems: WishItemType[]) => void
+  loading: boolean
 }
 
 export function WishListContent({
-  list,
   items,
+  isDefaultList,
   searchQuery,
-  onAddItem,
-  onToggleComplete,
+  onSearchChange,
+  onCreateItem,
   onEditItem,
   onDeleteItem,
+  onToggleComplete,
   onConvertToTask,
   onReorderItems,
+  loading,
 }: WishListContentProps) {
+  const [showCompleted, setShowCompleted] = useState(true)
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -55,75 +63,108 @@ export function WishListContent({
     })
   )
 
-  // 検索フィルタリング
-  const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return items
-    const query = searchQuery.toLowerCase()
-    return items.filter(
-      (item) =>
-        item.title.toLowerCase().includes(query) ||
-        (item.reason && item.reason.toLowerCase().includes(query))
-    )
-  }, [items, searchQuery])
-
-  // 未完了・完了済みに分離
-  const { activeItems, completedItems } = useMemo(() => {
-    const active = filteredItems.filter((item) => !item.is_completed)
-    const completed = filteredItems.filter((item) => item.is_completed)
-    return {
-      activeItems: active.sort((a, b) => a.sort_order - b.sort_order),
-      completedItems: completed.sort((a, b) => a.sort_order - b.sort_order),
-    }
-  }, [filteredItems])
+  // 未完了・完了で分離
+  const incompleteItems = items.filter(item => !item.is_completed)
+  const completedItems = items.filter(item => item.is_completed)
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
     if (over && active.id !== over.id) {
-      const allItems = [...activeItems, ...completedItems]
-      const oldIndex = allItems.findIndex((item) => item.id === active.id)
-      const newIndex = allItems.findIndex((item) => item.id === over.id)
-      
+      const oldIndex = incompleteItems.findIndex(item => item.id === active.id)
+      const newIndex = incompleteItems.findIndex(item => item.id === over.id)
+
       if (oldIndex !== -1 && newIndex !== -1) {
-        const reordered = arrayMove(allItems, oldIndex, newIndex)
-        onReorderItems(reordered)
+        const newIncompleteItems = arrayMove(incompleteItems, oldIndex, newIndex)
+        // sort_orderを更新
+        const updatedItems = newIncompleteItems.map((item, index) => ({
+          ...item,
+          sort_order: index,
+        }))
+        onReorderItems([...updatedItems, ...completedItems])
       }
     }
   }
 
-  if (!list) {
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-        <Sparkles className="h-12 w-12 mb-4" />
-        <p>リストを選択してください</p>
+      <div className="p-8 text-center">
+        <div className="animate-spin h-8 w-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto"></div>
+        <p className="mt-4 text-slate-500">読み込み中...</p>
       </div>
     )
   }
 
-  const isDefaultList = list.is_default
-
   return (
-    <div className="flex flex-col h-full">
-      {/* インライン追加フォーム */}
+    <div>
+      {/* Search */}
+      <div className="p-4 border-b border-slate-100">
+        <WishListSearch value={searchQuery} onChange={onSearchChange} />
+      </div>
+
+      {/* Add Item Form */}
       <WishItemInlineForm
         isDefaultList={isDefaultList}
-        onSubmit={onAddItem}
+        onSubmit={onCreateItem}
       />
 
-      {/* アイテム一覧 */}
+      {/* Incomplete Items */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex-1 overflow-y-auto">
-          {/* 未完了アイテム */}
-          {activeItems.length > 0 ? (
-            <SortableContext
-              items={activeItems.map((item) => item.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {activeItems.map((item) => (
+        <SortableContext
+          items={incompleteItems.map(item => item.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {incompleteItems.map(item => (
+            <WishItem
+              key={item.id}
+              item={item}
+              isDefaultList={isDefaultList}
+              onToggleComplete={onToggleComplete}
+              onEdit={onEditItem}
+              onDelete={onDeleteItem}
+              onConvertToTask={onConvertToTask}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+
+      {/* Empty State */}
+      {incompleteItems.length === 0 && !searchQuery && (
+        <div className="p-8 text-center text-slate-400">
+          <p>アイテムがありません</p>
+          <p className="text-sm mt-1">上のフォームから追加してください</p>
+        </div>
+      )}
+
+      {/* No Search Results */}
+      {incompleteItems.length === 0 && searchQuery && (
+        <div className="p-8 text-center text-slate-400">
+          <p>「{searchQuery}」に一致するアイテムがありません</p>
+        </div>
+      )}
+
+      {/* Completed Items */}
+      {completedItems.length > 0 && (
+        <div className="border-t border-slate-200">
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="w-full px-4 py-3 flex items-center gap-2 text-sm text-slate-500 hover:bg-slate-50 transition-colors"
+          >
+            {showCompleted ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+            完了済み ({completedItems.length})
+          </button>
+
+          {showCompleted && (
+            <div className="bg-slate-50">
+              {completedItems.map(item => (
                 <WishItem
                   key={item.id}
                   item={item}
@@ -134,53 +175,10 @@ export function WishListContent({
                   onConvertToTask={onConvertToTask}
                 />
               ))}
-            </SortableContext>
-          ) : (
-            !searchQuery && (
-              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                <Sparkles className="h-10 w-10 mb-3" />
-                <p className="text-sm">
-                  {isDefaultList
-                    ? 'ウィッシュを追加してみましょう'
-                    : 'やりたいことを追加してみましょう'}
-                </p>
-              </div>
-            )
-          )}
-
-          {/* 検索結果なし */}
-          {searchQuery && filteredItems.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-              <p className="text-sm">「{searchQuery}」に一致するアイテムはありません</p>
-            </div>
-          )}
-
-          {/* 完了済みアイテム */}
-          {completedItems.length > 0 && (
-            <div className="mt-4">
-              <div className="px-4 py-2 text-sm font-medium text-slate-500 bg-slate-50 border-y border-slate-100">
-                完了済み ({completedItems.length})
-              </div>
-              <SortableContext
-                items={completedItems.map((item) => item.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {completedItems.map((item) => (
-                  <WishItem
-                    key={item.id}
-                    item={item}
-                    isDefaultList={isDefaultList}
-                    onToggleComplete={onToggleComplete}
-                    onEdit={onEditItem}
-                    onDelete={onDeleteItem}
-                    onConvertToTask={onConvertToTask}
-                  />
-                ))}
-              </SortableContext>
             </div>
           )}
         </div>
-      </DndContext>
+      )}
     </div>
   )
 }

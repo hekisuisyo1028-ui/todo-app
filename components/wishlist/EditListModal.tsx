@@ -16,15 +16,10 @@ interface EditListModalProps {
   list: WishList | null
   isOpen: boolean
   onClose: () => void
-  onUpdate: (id: string, title: string) => void
+  onSubmit: (id: string, title: string) => void
 }
 
-export function EditListModal({
-  list,
-  isOpen,
-  onClose,
-  onUpdate,
-}: EditListModalProps) {
+export function EditListModal({ list, isOpen, onClose, onSubmit }: EditListModalProps) {
   const [title, setTitle] = useState('')
   const [error, setError] = useState('')
 
@@ -33,19 +28,16 @@ export function EditListModal({
       setTitle(list.title)
       setError('')
     }
-  }, [list, isOpen])
+  }, [list])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!title.trim()) {
       setError('リスト名を入力してください')
       return
     }
-
     if (list) {
-      onUpdate(list.id, title.trim())
-      onClose()
+      onSubmit(list.id, title.trim())
     }
   }
 
@@ -53,9 +45,8 @@ export function EditListModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="rounded-2xl">
         <DialogHeader>
-          <DialogTitle>リスト名を編集</DialogTitle>
+          <DialogTitle>リスト名を変更</DialogTitle>
         </DialogHeader>
-        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -63,25 +54,17 @@ export function EditListModal({
             </label>
             <Input
               value={title}
-              onChange={(e) => {
-                setTitle(e.target.value)
-                setError('')
-              }}
-              autoFocus
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="リスト名を入力"
               className={error ? 'border-red-500' : ''}
+              autoFocus
             />
             {error && (
               <p className="mt-1 text-sm text-red-500">{error}</p>
             )}
           </div>
-
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="rounded-xl"
-            >
+            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
               キャンセル
             </Button>
             <Button

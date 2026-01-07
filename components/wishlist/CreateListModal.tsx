@@ -14,14 +14,10 @@ import {
 interface CreateListModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreate: (title: string) => void
+  onSubmit: (title: string) => void
 }
 
-export function CreateListModal({
-  isOpen,
-  onClose,
-  onCreate,
-}: CreateListModalProps) {
+export function CreateListModal({ isOpen, onClose, onSubmit }: CreateListModalProps) {
   const [title, setTitle] = useState('')
   const [error, setError] = useState('')
 
@@ -34,14 +30,12 @@ export function CreateListModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!title.trim()) {
       setError('リスト名を入力してください')
       return
     }
-
-    onCreate(title.trim())
-    onClose()
+    onSubmit(title.trim())
+    setTitle('')
   }
 
   return (
@@ -50,7 +44,6 @@ export function CreateListModal({
         <DialogHeader>
           <DialogTitle>新しいリストを作成</DialogTitle>
         </DialogHeader>
-        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -58,26 +51,17 @@ export function CreateListModal({
             </label>
             <Input
               value={title}
-              onChange={(e) => {
-                setTitle(e.target.value)
-                setError('')
-              }}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="例: 旅行で行きたい場所"
-              autoFocus
               className={error ? 'border-red-500' : ''}
+              autoFocus
             />
             {error && (
               <p className="mt-1 text-sm text-red-500">{error}</p>
             )}
           </div>
-
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="rounded-xl"
-            >
+            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
               キャンセル
             </Button>
             <Button
